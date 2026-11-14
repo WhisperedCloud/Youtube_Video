@@ -11,6 +11,25 @@ from src.script_generator import generate_ambience_metadata
 from src.video_transformer import create_long_form_video, create_short_video
 from src.youtube_uploader import upload_to_youtube
 from src.thumbnail import make_thumbnail
+from src.quality_check import check_video
+
+# DRY_RUN=1 python main.py  -> build + quality-check everything, save to DRY_RUN_DIR, upload nothing
+DRY_RUN = os.environ.get("DRY_RUN") == "1"
+DRY_RUN_DIR = os.environ.get("DRY_RUN_DIR", "dry_run_output")
+LONG_SECONDS = 600
+SHORT_SECONDS = 30
+
+
+def passes_quality(path: str, seconds: int, vertical: bool, label: str) -> bool:
+    ok, report = check_video(path, seconds, vertical)
+    print(f"   🔍 QC {label}: {'✅ PASS' if ok else '❌ FAIL'} — {report}")
+    return ok
+
+
+def keep_for_review(path: str, name: str) -> None:
+    import shutil
+    os.makedirs(DRY_RUN_DIR, exist_ok=True)
+    shutil.copy(path, os.path.join(DRY_RUN_DIR, name))
 
 # ── Peak publish times (UTC) ────────────────────────────────────────────────
 # Audience = global English (US is the biggest market for sleep/study ambience).
@@ -72,8 +91,11 @@ def main():
         long_success = create_long_form_video(
             query_keyword=topic, 
             output_path=long_output_path, 
-            target_duration=600  # <--- Set your desired length in seconds here
+            target_duration=LONG_SECONDS
         )
+
+        if long_success and not passes_quality(long_output_path, LONG_SECONDS, False, "long-form"):
+            long_success = False  # never upload a broken / silent video
 
         if long_success:
             print("🤖 Generating metadata for Long-Form video via Gemini...")
@@ -81,15 +103,24 @@ def main():
             thumb_path = make_thumbnail(long_output_path, long_meta["thumbnail_text"])
             
             print(f"📤 Uploading Long-Form: {long_meta['title']}")
-            upload_to_youtube(
-                video_file=long_output_path,
-                title=long_meta["title"],
-                description=long_meta["description"],
-                tags=long_meta["tags"],
-                is_short=False,
-                publish_at=long_publish_at,
-                thumbnail=thumb_path,
-            )
+            if DRY_RUN:
+                slug = topic.replace(" ", "_")
+                keep_for_review(long_output_path, f"{slug}_long.mp4")
+                if thumb_path: keep_for_review(thumb_path, f"{slug}_thumb.jpg")
+                with open(os.path.join(DRY_RUN_DIR, f"{slug}_long.txt"), "w") as f:
+                    f.write(f"{long_meta['title']}\n\n{long_meta['description']}\n\nTAGS: {', '.join(long_meta['tags'])}\nPUBLISH AT: {long_publish_at}\n")
+                print("   (dry run: not uploaded)")
+            else:
+                upload_to_youtube(
+                    video_file=long_output_path,
+                    title=long_meta["title"],
+                    description=long_meta["description"],
+                    tags=long_meta["tags"],
+                    is_short=False,
+                    publish_at=long_publish_at,
+                    thumbnail=thumb_path,
+                    topic=topic,
+                )
             if thumb_path and os.path.exists(thumb_path):
                 os.remove(thumb_path)
 
@@ -101,22 +132,33 @@ def main():
         short_success = create_short_video(
             query_keyword=topic, 
             output_path=short_output_path, 
-            target_duration=30
+            target_duration=SHORT_SECONDS
         )
+
+        if short_success and not passes_quality(short_output_path, SHORT_SECONDS, True, "short"):
+            short_success = False
 
         if short_success:
             print("🤖 Generating metadata for Short via Gemini...")
             short_meta = generate_ambience_metadata(topic, is_short=True)
             
             print(f"📤 Uploading Short: {short_meta['title']}")
-            upload_to_youtube(
-                video_file=short_output_path,
-                title=short_meta["title"],
-                description=short_meta["description"],
-                tags=short_meta["tags"],
-                is_short=True,
-                publish_at=short_publish_at,
-            )
+            if DRY_RUN:
+                slug = topic.replace(" ", "_")
+                keep_for_review(short_output_path, f"{slug}_short.mp4")
+                with open(os.path.join(DRY_RUN_DIR, f"{slug}_short.txt"), "w") as f:
+                    f.write(f"{short_meta['title']}\n\n{short_meta['description']}\n\nTAGS: {', '.join(short_meta['tags'])}\nPUBLISH AT: {short_publish_at}\n")
+                print("   (dry run: not uploaded)")
+            else:
+                upload_to_youtube(
+                    video_file=short_output_path,
+                    title=short_meta["title"],
+                    description=short_meta["description"],
+                    tags=short_meta["tags"],
+                    is_short=True,
+                    publish_at=short_publish_at,
+                    topic=topic,
+                )
 
         if os.path.exists(short_output_path):
             os.remove(short_output_path)

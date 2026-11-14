@@ -5,7 +5,9 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from googleapiclient.errors import HttpError
 
-def upload_to_youtube(video_file: str, title: str, description: str, tags: list, is_short: bool = False, max_retries: int = 3, privacy: str = "public", publish_at: str = None, thumbnail: str = None) -> bool:
+from src.playlists import add_to_playlist
+
+def upload_to_youtube(video_file: str, title: str, description: str, tags: list, is_short: bool = False, max_retries: int = 3, privacy: str = "public", publish_at: str = None, thumbnail: str = None, topic: str = None) -> bool:
     client_id = os.environ.get("YT_CLIENT_ID")
     client_secret = os.environ.get("YT_CLIENT_SECRET")
     refresh_token = os.environ.get("YT_REFRESH_TOKEN")
@@ -73,6 +75,8 @@ def upload_to_youtube(video_file: str, title: str, description: str, tags: list,
                     print("   -> Custom thumbnail set")
                 except Exception as te:
                     print(f"   ⚠️ Thumbnail not set (channel must be phone-verified at youtube.com/verify): {str(te)[:150]}")
+            if topic:
+                add_to_playlist(youtube, video_id, topic, is_short)
             return True
 
         except (HttpError, Exception) as e:
