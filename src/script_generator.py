@@ -61,7 +61,9 @@ def generate_ambience_metadata(filename: str, is_short: bool = False) -> dict:
 
         # Append trending hashtags for shorts or long form
         if is_short:
-            title = f"{title} #shorts #relax"
+            for tag in ("#shorts", "#relax"):
+                if tag not in title.lower():
+                    title = f"{title} {tag}"
             tags.extend(["shorts", "ambience"])
         else:
             tags.extend(["ambient sounds", "deep sleep"])

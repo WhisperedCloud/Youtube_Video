@@ -5,7 +5,7 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from googleapiclient.errors import HttpError
 
-def upload_to_youtube(video_file: str, title: str, description: str, tags: list, is_short: bool = False, max_retries: int = 3) -> bool:
+def upload_to_youtube(video_file: str, title: str, description: str, tags: list, is_short: bool = False, max_retries: int = 3, privacy: str = "public") -> bool:
     client_id = os.environ.get("YT_CLIENT_ID")
     client_secret = os.environ.get("YT_CLIENT_SECRET")
     refresh_token = os.environ.get("YT_REFRESH_TOKEN")
@@ -33,7 +33,7 @@ def upload_to_youtube(video_file: str, title: str, description: str, tags: list,
             "categoryId": "24"  # Entertainment / Ambience
         },
         "status": {
-            "privacyStatus": "public",  # Change to "private" if you want to review them first
+            "privacyStatus": privacy,  # "public", "private" or "unlisted"
             "selfDeclaredMadeForKids": False
         }
     }
