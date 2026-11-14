@@ -5,7 +5,7 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from googleapiclient.errors import HttpError
 
-def upload_to_youtube(video_file: str, title: str, description: str, tags: list, is_short: bool = False, max_retries: int = 3, privacy: str = "public", publish_at: str = None) -> bool:
+def upload_to_youtube(video_file: str, title: str, description: str, tags: list, is_short: bool = False, max_retries: int = 3, privacy: str = "public", publish_at: str = None, thumbnail: str = None) -> bool:
     client_id = os.environ.get("YT_CLIENT_ID")
     client_secret = os.environ.get("YT_CLIENT_SECRET")
     refresh_token = os.environ.get("YT_REFRESH_TOKEN")
@@ -30,7 +30,9 @@ def upload_to_youtube(video_file: str, title: str, description: str, tags: list,
             "title": title[:100],
             "description": description,
             "tags": tags,
-            "categoryId": "24"  # Entertainment / Ambience
+            "categoryId": "10",  # Music: where sleep / study / ambience channels rank
+            "defaultLanguage": "en",
+            "defaultAudioLanguage": "en",
         },
         "status": {
             "privacyStatus": privacy,  # "public", "private" or "unlisted"
@@ -63,7 +65,14 @@ def upload_to_youtube(video_file: str, title: str, description: str, tags: list,
                 if status:
                     print(f"   -> Progress: {int(status.progress() * 100)}%")
 
-            print(f"✅ Successfully uploaded! Video ID: {response.get('id')}")
+            video_id = response.get("id")
+            print(f"✅ Successfully uploaded! Video ID: {video_id}")
+            if thumbnail and os.path.exists(thumbnail):
+                try:
+                    youtube.thumbnails().set(videoId=video_id, media_body=MediaFileUpload(thumbnail, mimetype="image/jpeg")).execute()
+                    print("   -> Custom thumbnail set")
+                except Exception as te:
+                    print(f"   ⚠️ Thumbnail not set (channel must be phone-verified at youtube.com/verify): {str(te)[:150]}")
             return True
 
         except (HttpError, Exception) as e:

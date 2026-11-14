@@ -10,6 +10,7 @@ sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from src.script_generator import generate_ambience_metadata
 from src.video_transformer import create_long_form_video, create_short_video
 from src.youtube_uploader import upload_to_youtube
+from src.thumbnail import make_thumbnail
 
 # ── Peak publish times (UTC) ────────────────────────────────────────────────
 # Audience = global English (US is the biggest market for sleep/study ambience).
@@ -76,7 +77,8 @@ def main():
 
         if long_success:
             print("🤖 Generating metadata for Long-Form video via Gemini...")
-            long_meta = generate_ambience_metadata(topic, is_short=False)
+            long_meta = generate_ambience_metadata(topic, is_short=False, duration_label="10 Minutes")
+            thumb_path = make_thumbnail(long_output_path, long_meta["thumbnail_text"])
             
             print(f"📤 Uploading Long-Form: {long_meta['title']}")
             upload_to_youtube(
@@ -86,7 +88,10 @@ def main():
                 tags=long_meta["tags"],
                 is_short=False,
                 publish_at=long_publish_at,
+                thumbnail=thumb_path,
             )
+            if thumb_path and os.path.exists(thumb_path):
+                os.remove(thumb_path)
 
         if os.path.exists(long_output_path):
             os.remove(long_output_path)
