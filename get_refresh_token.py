@@ -9,6 +9,8 @@ Usage:
   4. The refresh token is written into .env automatically.
 """
 import os
+import sys
+import webbrowser
 from dotenv import load_dotenv, set_key
 from google_auth_oauthlib.flow import InstalledAppFlow
 
@@ -35,8 +37,22 @@ def main():
         },
         SCOPES,
     )
+    # Always open the sign-in page in a Chrome Incognito window (no stray logged-in accounts).
+    if sys.platform == "darwin":
+        incognito_cmd = ["open", "-na", "Google Chrome", "--args", "--incognito", "%s"]
+    else:
+        incognito_cmd = ["google-chrome", "--incognito", "%s"]
+    webbrowser.register("chrome-incognito", None, webbrowser.GenericBrowser(incognito_cmd))
+
     # prompt=consent forces Google to return a refresh token every time
-    creds = flow.run_local_server(port=0, access_type="offline", prompt="consent")
+    creds = flow.run_local_server(
+        port=8080,  # fixed so it matches the redirect URI http://localhost:8080/ on the OAuth client
+        access_type="offline",
+        prompt="consent select_account",
+        login_hint=os.environ.get("YT_LOGIN_HINT", ""),
+        browser="chrome-incognito",
+        authorization_prompt_message="If the browser didn't open, paste this URL into an Incognito window:\n{url}\n",
+    )
 
     if not creds.refresh_token:
         raise SystemExit("❌ No refresh token returned. Remove the app's access at myaccount.google.com/permissions and retry.")
