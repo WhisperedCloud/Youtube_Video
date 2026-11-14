@@ -5,7 +5,7 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from googleapiclient.errors import HttpError
 
-def upload_to_youtube(video_file: str, title: str, description: str, tags: list, is_short: bool = False, max_retries: int = 3, privacy: str = "public") -> bool:
+def upload_to_youtube(video_file: str, title: str, description: str, tags: list, is_short: bool = False, max_retries: int = 3, privacy: str = "public", publish_at: str = None) -> bool:
     client_id = os.environ.get("YT_CLIENT_ID")
     client_secret = os.environ.get("YT_CLIENT_SECRET")
     refresh_token = os.environ.get("YT_REFRESH_TOKEN")
@@ -37,6 +37,12 @@ def upload_to_youtube(video_file: str, title: str, description: str, tags: list,
             "selfDeclaredMadeForKids": False
         }
     }
+
+    # Scheduled publishing: upload as private, YouTube flips it public at publishAt (RFC 3339, UTC).
+    if publish_at:
+        body["status"]["privacyStatus"] = "private"
+        body["status"]["publishAt"] = publish_at
+        print(f"   -> Scheduled to go public at {publish_at}")
 
     # Use 5MB chunk size for upload stability
     media = MediaFileUpload(video_file, chunksize=5 * 1024 * 1024, resumable=True)

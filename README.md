@@ -1,13 +1,14 @@
 # YouTube Ambience Automation 🌧️☕
 
-A daily bot that runs a faceless ambience YouTube channel. Every day at 05:00 UTC (GitHub Actions) it:
+A daily bot that runs a faceless ambience YouTube channel. Every day at 12:00 UTC (GitHub Actions) it:
 
 1. Picks **2 random topics** from 10 (rain window, cozy fireplace, lofi cafe night, snow, thunderstorm, library, train, ocean, autumn rain, campfire).
 2. For each topic, downloads an **unused Pixabay stock clip with audio** and:
    - loops it into a **10-minute 16:9 video**, and
    - downloads a *second* clip, loops it to 30s and crops it to a **1080×1920 Short**.
 3. Asks **Gemini Flash-Lite** for a title, description and tags.
-4. Uploads both to YouTube as **public** (4 uploads/day).
+4. Uploads both to YouTube **scheduled** to go public at peak times (4 uploads/day):
+   Shorts at 16:00 & 23:30 UTC, long-form at 22:00 & 01:00 UTC (US afternoon/evening).
 5. Records each used Pixabay ID in `used_video_ids.txt` (committed back by the workflow) so clips aren't repeated.
 
 ## Structure
@@ -40,5 +41,5 @@ used_video_ids.txt                   # Pixabay clips already used
 ## Tuning
 
 - Topics / uploads per day / long-form length: `main.py`
-- Public vs private: `privacyStatus` in `src/youtube_uploader.py`
+- Publish times: `PUBLISH_SLOTS_UTC` in `main.py`
 - Schedule: `cron` in `.github/workflows/daily_upload.yml`

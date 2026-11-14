@@ -2,7 +2,7 @@ name: Automated Ambience Pipeline
 
 on:
   schedule:
-    - cron: '0 5 * * *'  # Runs every day at 5:00 AM UTC
+    - cron: '0 12 * * *'  # 12:00 UTC: render + upload early; videos go public at peak slots set in main.py
   workflow_dispatch:      # Allows manual trigger anytime from GitHub
 
 jobs:

@@ -1,6 +1,7 @@
 import os
 import sys
 import random
+from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -9,6 +10,31 @@ sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from src.script_generator import generate_ambience_metadata
 from src.video_transformer import create_long_form_video, create_short_video
 from src.youtube_uploader import upload_to_youtube
+
+# ── Peak publish times (UTC) ────────────────────────────────────────────────
+# Audience = global English (US is the biggest market for sleep/study ambience).
+# YouTube advice: publish 1–3 hours BEFORE your audience's peak so the video is
+# indexed and recommended when viewers arrive.
+#   Shorts  → US lunch break (~12 PM ET) and US early evening (~7 PM ET)
+#   Long    → before US evening wind-down / study (~6 PM ET) and before
+#             US-West + late-evening sleep viewing (~9 PM ET)
+PUBLISH_SLOTS_UTC = [
+    # (long-form slot, short slot) per topic
+    {"long": "22:00", "short": "16:00"},   # 5 PM ET  / 11 AM ET
+    {"long": "01:00", "short": "23:30"},   # 8 PM ET  / 6:30 PM ET
+]
+MIN_LEAD = timedelta(minutes=45)  # publishAt must be safely in the future
+
+
+def next_slot(hhmm: str) -> str:
+    """Next occurrence of HH:MM UTC at least MIN_LEAD from now, as RFC 3339."""
+    now = datetime.now(timezone.utc)
+    h, m = map(int, hhmm.split(":"))
+    slot = now.replace(hour=h, minute=m, second=0, microsecond=0)
+    while slot < now + MIN_LEAD:
+        slot += timedelta(days=1)
+    return slot.strftime("%Y-%m-%dT%H:%M:%SZ")
+
 
 def main():
     print("🚀 Starting Hybrid Ambience Automation Pipeline...")
@@ -32,7 +58,9 @@ def main():
     ambience_topics = random.sample(master_topics, 2)
     print(f"🎯 Selected topics for today's run: {ambience_topics}")
 
-    for topic in ambience_topics:
+    for topic, slots in zip(ambience_topics, PUBLISH_SLOTS_UTC):
+        long_publish_at = next_slot(slots["long"])
+        short_publish_at = next_slot(slots["short"])
         print(f"\n----------------------------------------")
         print(f"🎬 Processing Ambience Topic: {topic}")
         print(f"----------------------------------------")
@@ -56,7 +84,8 @@ def main():
                 title=long_meta["title"],
                 description=long_meta["description"],
                 tags=long_meta["tags"],
-                is_short=False
+                is_short=False,
+                publish_at=long_publish_at,
             )
 
         if os.path.exists(long_output_path):
@@ -80,7 +109,8 @@ def main():
                 title=short_meta["title"],
                 description=short_meta["description"],
                 tags=short_meta["tags"],
-                is_short=True
+                is_short=True,
+                publish_at=short_publish_at,
             )
 
         if os.path.exists(short_output_path):
