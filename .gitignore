@@ -20,3 +20,6 @@ temp_short.mp4
 .vscode/
 .idea/
 .DS_Storedry_run_output/
+
+reels_output/
+__pycache__/
