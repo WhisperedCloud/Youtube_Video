@@ -89,9 +89,9 @@ def finish_with_audio(unit: str, source_clip: str, topic: str, duration: float, 
     if use_clip_audio:
         args += ["-stream_loop", "-1", "-i", source_clip, "-filter_complex",
                  f"[2:a]atrim=0:{duration},asetpts=N/SR/TB[c];[1:a]volume=0.6[b];"
-                 f"[c][b]amix=inputs=2:normalize=0,loudnorm=I=-16:TP=-1.5:LRA=11,alimiter=limit=0.79:level=false:attack=2:release=50[a]"]
+                 f"[c][b]amix=inputs=2:normalize=0,loudnorm=I=-20:TP=-3:LRA=7,alimiter=limit=0.63:level=false:attack=5:release=80[a]"]
     else:
-        args += ["-filter_complex", "[1:a]loudnorm=I=-16:TP=-1.5:LRA=11,alimiter=limit=0.79:level=false:attack=2:release=50[a]"]
+        args += ["-filter_complex", "[1:a]loudnorm=I=-20:TP=-3:LRA=7,alimiter=limit=0.63:level=false:attack=5:release=80[a]"]
     args += ["-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "44100",
              "-ac", "2", "-movflags", "+faststart", "-t", str(duration), out_path]
     _ff(args)

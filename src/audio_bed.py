@@ -74,33 +74,33 @@ def _env(L, attack_ms=3.0, decay=5.0):
 def _rumbles(n, rng, count, length=(5, 9), amp=(0.6, 1.0)):
     """Thunder: deep rolling rumble with a slow swell (no sharp onset)."""
     out = np.zeros(n, np.float32)
-    low = _shaped_noise(n, rng, alpha=2.0, lo=25, hi=180)
+    low = _shaped_noise(n, rng, alpha=2.2, lo=22, hi=140)
     for _ in range(count):
         L = int(SR * rng.uniform(*length))
         idx = (rng.integers(0, n) + np.arange(L)) % n
         t = np.linspace(0, 1, L)
-        env = (np.minimum(t / 0.12, 1) ** 2) * np.exp(-3.0 * t) * (1 + 0.35 * np.sin(2 * np.pi * rng.uniform(1, 3) * t))
-        out[idx] += low[idx] * env.astype(np.float32) * rng.uniform(*amp) * 2.2
+        env = (np.minimum(t / 0.2, 1) ** 2) * np.exp(-2.5 * t) * (1 + 0.25 * np.sin(2 * np.pi * rng.uniform(1, 2) * t))
+        out[idx] += low[idx] * env.astype(np.float32) * rng.uniform(*amp) * 1.4
     return out
 
 
 def _rain(n, rng, heavy=False):
     """Steady rain: warm body + soft mid 'shhh' + a little air, all gently low-passed."""
     body = _shaped_noise(n, rng, alpha=1.7, lo=70, hi=1800)
-    mid = _shaped_noise(n, rng, alpha=0.8, lo=300, hi=7000, rolloff=5000)
-    air = _shaped_noise(n, rng, alpha=1.0, lo=2500, hi=9000, rolloff=7000)
-    patter = _flutter(n, rng, depth=0.18, lo=1.0, hi=8.0) * _slow_env(n, rng, [3, 7, 13], 0.25)
-    g = (0.9, 1.25, 0.35) if heavy else (0.6, 1.2, 0.3)
+    mid = _shaped_noise(n, rng, alpha=1.0, lo=250, hi=6000, rolloff=3800)
+    air = _shaped_noise(n, rng, alpha=1.2, lo=2500, hi=8000, rolloff=5000)
+    patter = _flutter(n, rng, depth=0.1, lo=0.5, hi=5.0) * _slow_env(n, rng, [2, 5, 9], 0.2)
+    g = (0.95, 1.0, 0.2) if heavy else (0.8, 1.0, 0.16)
     return (body * g[0] + mid * g[1] * patter + air * g[2] * patter).astype(np.float32)
 
 
 def _ocean(n, rng):
-    waves_per_seg = 12  # ~10 s per wave
+    waves_per_seg = 9  # ~13 s per wave: slow, breathing rhythm
     t = np.arange(n) / n
     phase = (t * waves_per_seg) % 1.0
-    swell = (np.sin(np.pi * phase) ** 3).astype(np.float32)  # gentle rise, crash, retreat
+    swell = (np.sin(np.pi * phase) ** 2).astype(np.float32)  # gentle rise and retreat
     roar = _shaped_noise(n, rng, alpha=1.6, lo=40, hi=2000) * (0.3 + 0.7 * swell)
-    wash = _shaped_noise(n, rng, alpha=1.2, lo=300, hi=5000, rolloff=3000) * (swell ** 2) * 0.55
+    wash = _shaped_noise(n, rng, alpha=1.4, lo=250, hi=4000, rolloff=2200) * (swell ** 2) * 0.4
     return roar + wash
 
 
@@ -119,8 +119,8 @@ def _fire(n, rng):
         s = rng.integers(0, SR - L)
         return crk_src[s:s + L] * _env(L, attack_ms=2.5, decay=6)
 
-    crackles = _events(n, rng, rate=2.5, length_ms=(15, 40), make=crackle, amp=(0.08, 0.3))
-    pops = _events(n, rng, rate=0.25, length_ms=(40, 90), make=pop, amp=(0.25, 0.5))
+    crackles = _events(n, rng, rate=1.6, length_ms=(15, 40), make=crackle, amp=(0.05, 0.18))
+    pops = _events(n, rng, rate=0.12, length_ms=(40, 90), make=pop, amp=(0.12, 0.25))
     return roar + breath + crackles + pops
 
 
@@ -138,7 +138,7 @@ def _train(n, rng):
     L = int(0.07 * SR)
     shape = _env(L, attack_ms=3, decay=10)
     for k in range(100):
-        for off, a in ((0.0, 0.35), (0.16, 0.28)):
+        for off, a in ((0.0, 0.18), (0.16, 0.14)):
             s = int((k * period + off) * SR) % n
             clack[(s + np.arange(L)) % n] += clack_src[:L] * shape * a
     return rumble + clack + _rain(n, rng) * 0.25
@@ -156,7 +156,7 @@ def _room(n, rng, busy=False):
             f = rng.uniform(1800, 3200)
             return (np.sin(2 * np.pi * f * t) + 0.4 * np.sin(2 * np.pi * f * 2.7 * t)).astype(np.float32) * _env(L, 1.0, 7)
 
-        out = out + _events(n, rng, rate=0.12, length_ms=(150, 300), make=clink, amp=(0.02, 0.06))
+        out = out + _events(n, rng, rate=0.08, length_ms=(150, 300), make=clink, amp=(0.01, 0.03))
     else:  # library: occasional page turn (soft, mid-band swish)
         swish_src = _shaped_noise(SR, rng, alpha=1.0, lo=500, hi=4000, rolloff=2500)
         swish_src /= np.abs(swish_src).max() + 1e-9
@@ -173,7 +173,7 @@ def _room(n, rng, busy=False):
 def _recipe(topic: str):
     t = topic.lower()
     if "thunder" in t or "storm" in t:
-        return lambda n, r: _rain(n, r, heavy=True) + _rumbles(n, r, count=5)
+        return lambda n, r: _rain(n, r, heavy=True) + _rumbles(n, r, count=3, length=(7, 12), amp=(0.5, 0.8))
     if "ocean" in t or "wave" in t or "sea" in t or "beach" in t:
         return _ocean
     if "fire" in t or "campfire" in t:
@@ -197,7 +197,7 @@ def make_ambience_wav(topic: str, duration: float, out_path: str, seed: int = No
     n = SR * SEG
     make = _recipe(topic)
     left = make(n, rng)
-    right = 0.7 * left + 0.3 * make(n, rng)  # natural stereo width, still correlated
+    right = 0.6 * left + 0.4 * make(n, rng)  # wide, enveloping stereo, still correlated
     seg = np.stack([left, right], axis=1)
     seg /= np.abs(seg).max() + 1e-9
     seg *= 0.7
@@ -205,7 +205,7 @@ def make_ambience_wav(topic: str, duration: float, out_path: str, seed: int = No
     total = int(duration * SR)
     reps = int(np.ceil(total / n))
     audio = np.tile(seg, (reps, 1))[:total]
-    fade = int(SR * 1.5)
+    fade = int(SR * min(4.0, duration / 6))  # slow fade in/out
     ramp = np.linspace(0, 1, fade, dtype=np.float32)[:, None]
     audio[:fade] *= ramp
     audio[-fade:] *= ramp[::-1]

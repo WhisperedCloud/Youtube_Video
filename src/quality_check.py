@@ -84,8 +84,8 @@ def check_video(path: str, expected_duration: float, vertical: bool) -> tuple:
     if i.get("acodec") != "aac" or i.get("channels") != "stereo":
         problems.append(f"audio {i.get('acodec')}/{i.get('channels')} (expected aac/stereo)")
     lufs = i.get("lufs")
-    if lufs is None or not (-20 <= lufs <= -12):
-        problems.append(f"loudness {lufs} LUFS (expected -20..-12, YouTube target ≈ -14)")
+    if lufs is None or not (-23 <= lufs <= -17):
+        problems.append(f"loudness {lufs} LUFS (expected -23..-17, soft sleep-channel level)")
     if i.get("true_peak") is not None and i["true_peak"] > -0.5:
         problems.append(f"clipping risk: peak {i['true_peak']} dBFS")
     if i.get("hf_pct") is not None and i["hf_pct"] > 8:
