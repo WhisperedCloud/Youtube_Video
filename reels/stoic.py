@@ -9,7 +9,7 @@ import random
 from PIL import ImageDraw, ImageFilter
 
 from audio import stoic_track
-from common import H, W, clean_hashtags, download, font, gemini_json, load_used, mark_used, pixabay_search
+from common import H, W, clean_hashtags, download, font, gemini_json, load_used, mark_used, pixabay_search, plain
 from quotes import BACKDROPS, QUOTES
 from render import canvas, compose, fit_lines, gradient, save, shadow_text
 
@@ -46,17 +46,17 @@ def stoic_text(quote: str, author: str) -> dict:
 "{quote}" — {author}
 Do NOT change or re-word the quote. Return JSON:
 - "meaning": ONE plain-English line applying it to modern life (work, phones, relationships, money, stress).
-  Specific, warm, not preachy. Max 95 characters. No emoji, no quotation marks.
+  Specific, warm, not preachy. Max 95 characters. No emoji, no quotation marks, no Markdown.
 - "hook": first caption line that stops the scroll, max 70 characters, no emoji.
 - "reflection": 2-3 short sentences expanding the idea for the caption, practical, second person.
 - "hashtags": 6 relevant hashtags (no '#')."""
     g = gemini_json(prompt, temperature=0.9) or {}
-    meaning = str(g.get("meaning", "")).strip().strip('"“”')
+    meaning = plain(g.get("meaning", "")).strip('"“”')
     if not (15 <= len(meaning) <= 110):
         meaning = ""
     return {"meaning": meaning,
-            "hook": str(g.get("hook", "")).strip()[:90] or f"{author} wrote this 2,000 years ago. Still true.",
-            "reflection": str(g.get("reflection", "")).strip()[:600],
+            "hook": plain(g.get("hook", ""), 90) or f"{author} wrote this 2,000 years ago. Still true.",
+            "reflection": plain(g.get("reflection", ""), 600),
             "hashtags": g.get("hashtags", [])}
 
 

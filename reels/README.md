@@ -5,8 +5,14 @@ Two faceless Instagram accounts, 2 Reels a day each, made and posted for free by
 
 | Account | Format | Posts (UTC) |
 |---|---|---|
-| `quiz` | Guess the Place: footage of a famous place, 4 options, 5 s countdown, reveal + fact | 13:30, 23:30 |
-| `stoic` | Real Stoic quote revealed line by line, author, then an original "today, this means" line | 01:30, 16:00 |
+| `quiz` | Guess the Place: footage of a famous place, 4 options, 5 s countdown, reveal + fact | 13:30 and 23:30 (7 PM India, 6:30 PM US East) |
+| `stoic` | Real Stoic quote revealed line by line, author, then an original "today, this means" line | 01:30 and 16:00 (8:30 PM US East, 9:30 PM India) |
+
+The workflow wakes every hour. When a slot in `reels/slots.py` is near, it renders the Reel, waits, and
+publishes at the exact slot time (GitHub starts scheduled jobs late, and Instagram cannot schedule posts).
+
+Content sources: Pixabay footage (Pixabay Content License, free for commercial use, no credit needed), music
+synthesised by `audio.py` (original), OFL fonts, quotes from ancient authors in a hand-checked list.
 
 Every Reel is checked before posting (1080x1920, H.264/AAC, -14 LUFS). Used clips and quotes are logged in
 `reels/used_*.txt` so nothing repeats.

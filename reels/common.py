@@ -116,10 +116,10 @@ def gemini_json(prompt: str, temperature: float = 0.8):
         return None
     from google import genai
     from google.genai import types
-    client = genai.Client(api_key=key, http_options=types.HttpOptions(timeout=60_000))
+    client = genai.Client(api_key=key, http_options=types.HttpOptions(timeout=40_000))
     cfg = types.GenerateContentConfig(response_mime_type="application/json", temperature=temperature)
     for model in ("gemini-flash-latest", "gemini-2.5-flash", "gemini-flash-lite-latest", "gemini-2.5-flash-lite"):
-        for attempt in range(3):
+        for attempt in range(2):
             try:
                 raw = (client.models.generate_content(model=model, contents=prompt, config=cfg).text or "").strip()
                 return json.loads(re.sub(r"^```(?:json)?|```$", "", raw).strip())
@@ -140,5 +140,8 @@ def clean_hashtags(tags, base, limit=8) -> list:
     return out[:limit]
 
 
-def rng() -> random.Random:
-    return random.Random()
+def plain(text, limit=None) -> str:
+    """Caption-safe text: Instagram shows Markdown symbols literally, so strip them."""
+    t = re.sub(r"[*_`#]+", "", str(text or ""))
+    t = re.sub(r"[ \t]+", " ", t).strip()
+    return t[:limit] if limit else t

@@ -11,7 +11,7 @@ import random
 from PIL import ImageDraw
 
 from audio import quiz_track
-from common import H, W, clean_hashtags, download, font, gemini_json, load_used, pixabay_search
+from common import H, W, clean_hashtags, download, font, gemini_json, load_used, pixabay_search, plain
 from places import PLACES
 from render import canvas, compose, fit_lines, gradient, save, shadow_text
 
@@ -52,7 +52,7 @@ Return JSON:
   (same region, climate or architecture) so the quiz is tricky but fair. Max 24 characters each. Never "{answer}".
 - "fact": one surprising but well-known, verifiable fact about {answer}. Max 80 characters, no emoji.
 - "hook": a punchy first caption line inviting people to guess (max 70 characters, may end with one emoji).
-- "hashtags": 6 hashtags about this place and travel (no '#' needed).
+  It must NOT name or hint at the city, country or continent. Plain text, no Markdown.
 Only state facts you are certain are true."""
     g = gemini_json(prompt) or {}
     distractors = []
@@ -69,8 +69,12 @@ Only state facts you are certain are true."""
     fact = str(g.get("fact", "")).strip()
     if not (10 <= len(fact) <= 95):
         fact = ""
-    hook = str(g.get("hook", "")).strip()[:90] or "Can you guess this place in 5 seconds? 🌍"
-    return {"distractors": distractors[:3], "fact": fact, "hook": hook, "hashtags": g.get("hashtags", [])}
+    fact = plain(fact)
+    hook = plain(g.get("hook", ""), 90)
+    spoilers = [w.lower() for w in answer.replace(",", " ").split() if len(w) > 3]
+    if not hook or any(w in hook.lower() for w in spoilers):
+        hook = "Can you guess this place in 5 seconds? 🌍"
+    return {"distractors": distractors[:3], "fact": fact, "hook": hook}
 
 
 def _pill(d, cx, y, text, fnt, bg, fg):
@@ -85,7 +89,7 @@ def _rows(img, options, correct=None):
         y = ROW_Y0 + i * (ROW_H + ROW_GAP)
         is_right = correct is not None and i == correct
         dim = correct is not None and not is_right
-        bg = GREEN + (245,) if is_right else (255, 255, 255, 120 if dim else 236)
+        bg = GREEN + (245,) if is_right else (255, 255, 255, 110 if dim else 218)
         fg = (255, 255, 255) if is_right else (20, 24, 38)
         d.rounded_rectangle((ROW_X0 + 4, y + 6, ROW_X1 + 4, y + ROW_H + 6), radius=28, fill=(0, 0, 0, 70))
         d.rounded_rectangle((ROW_X0, y, ROW_X1, y + ROW_H), radius=28, fill=bg)
@@ -163,7 +167,8 @@ def build(handle: str, work: str, dry_run: bool):
     audio = quiz_track(p("audio.wav"), DURATION, ticks, REVEAL, seed=random.randint(0, 10_000))
     out = compose(clip_path, overlays, audio, p("reel.mp4"), DURATION, grade="eq=saturation=1.12:contrast=1.04")
 
-    tags = clean_hashtags(text["hashtags"], ["GuessThePlace", "GeographyQuiz", "TravelQuiz", "Travel", "Geography"], 8)
+    # generic tags only: a place hashtag would give the answer away in the caption
+    tags = clean_hashtags([], ["GuessThePlace", "GeographyQuiz", "TravelQuiz", "Geography", "Travel", "Quiz", "WhereIsThis"], 7)
     caption = (f"{text['hook']}\n\n"
                f"A) {options[0]}\nB) {options[1]}\nC) {options[2]}\nD) {options[3]}\n\n"
                "Comment your answer before the reveal, then send this to the friend who thinks they know geography.\n"
