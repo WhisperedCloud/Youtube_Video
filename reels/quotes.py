@@ -9,20 +9,15 @@ QUOTES = [
     ("The best revenge is not to be like your enemy.", "Marcus Aurelius", "Meditations"),
     ("Very little is needed to make a happy life; it is all within yourself, in your way of thinking.", "Marcus Aurelius", "Meditations"),
     ("If it is not right, do not do it; if it is not true, do not say it.", "Marcus Aurelius", "Meditations"),
-    ("The impediment to action advances action. What stands in the way becomes the way.", "Marcus Aurelius", "Meditations"),
     ("The soul becomes dyed with the colour of its thoughts.", "Marcus Aurelius", "Meditations"),
     ("Loss is nothing else but change, and change is Nature's delight.", "Marcus Aurelius", "Meditations"),
     ("Do every act of your life as though it were the very last act of your life.", "Marcus Aurelius", "Meditations"),
     ("How much more grievous are the consequences of anger than the causes of it.", "Marcus Aurelius", "Meditations"),
     ("Never esteem anything as of advantage to you that will make you break your word or lose your self-respect.", "Marcus Aurelius", "Meditations"),
-    ("You could leave life right now. Let that determine what you do and say and think.", "Marcus Aurelius", "Meditations"),
-    ("Choose not to be harmed, and you won't feel harmed. Don't feel harmed, and you haven't been.", "Marcus Aurelius", "Meditations"),
     ("Dwell on the beauty of life. Watch the stars, and see yourself running with them.", "Marcus Aurelius", "Meditations"),
     ("Never let the future disturb you. You will meet it, if you have to, with the same weapons of reason which today arm you against the present.", "Marcus Aurelius", "Meditations"),
-    ("Reject your sense of injury and the injury itself disappears.", "Marcus Aurelius", "Meditations"),
     ("Accept the things to which fate binds you, and love the people with whom fate brings you together.", "Marcus Aurelius", "Meditations"),
     ("The object of life is not to be on the side of the majority, but to escape finding oneself in the ranks of the insane.", "Marcus Aurelius", "Meditations"),
-    ("Confine yourself to the present.", "Marcus Aurelius", "Meditations"),
     ("The happiness of your life depends upon the quality of your thoughts.", "Marcus Aurelius", "Meditations"),
     ("When another blames you or hates you, approach their souls, penetrate within, and see what kind of people they are.", "Marcus Aurelius", "Meditations"),
     ("Look within. Within is the fountain of good, and it will ever bubble up, if you will ever dig.", "Marcus Aurelius", "Meditations"),
@@ -53,7 +48,6 @@ QUOTES = [
     ("Some things are within our power, while others are not.", "Epictetus", "Enchiridion"),
     ("Circumstances don't make the man, they only reveal him to himself.", "Epictetus", "Discourses"),
     ("It is impossible for a man to learn what he thinks he already knows.", "Epictetus", "Discourses"),
-    ("Don't seek for everything to happen as you wish it would, but rather wish that everything happens as it actually will.", "Epictetus", "Enchiridion"),
 ]
 
 # Moody backgrounds for the Stoic account (search query, tags one of which must appear)

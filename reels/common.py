@@ -27,7 +27,8 @@ FFMPEG = ffmpeg_bin()
 
 
 def ff(args, check=True):
-    r = subprocess.run([FFMPEG, "-hide_banner", "-y", "-loglevel", "error", *args], capture_output=True, text=True)
+    r = subprocess.run([FFMPEG, "-hide_banner", "-y", "-loglevel", "error", "-nostdin", *args], capture_output=True, text=True,
+                       timeout=900)
     if check and r.returncode != 0:
         raise RuntimeError(f"ffmpeg failed: {r.stderr[-800:]}")
     return r
@@ -115,7 +116,7 @@ def gemini_json(prompt: str, temperature: float = 0.8):
         return None
     from google import genai
     from google.genai import types
-    client = genai.Client(api_key=key)
+    client = genai.Client(api_key=key, http_options=types.HttpOptions(timeout=60_000))
     cfg = types.GenerateContentConfig(response_mime_type="application/json", temperature=temperature)
     for model in ("gemini-flash-latest", "gemini-2.5-flash", "gemini-flash-lite-latest", "gemini-2.5-flash-lite"):
         for attempt in range(3):

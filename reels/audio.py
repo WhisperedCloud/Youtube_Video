@@ -90,13 +90,16 @@ def stoic_track(path, duration, seed=0):
         lfo = 1 + 0.25 * np.sin(2 * np.pi * (0.07 + 0.03 * k) * t + k)
         pad_l += (0.5 / (k + 1)) * lfo * np.sin(2 * np.pi * f * t)
         pad_r += (0.5 / (k + 1)) * lfo * np.sin(2 * np.pi * f * 1.003 * t + 0.4)
-    air = np.convolve(rnd.standard_normal(n), np.ones(60) / 60, mode="same") * 0.6
+        # same chord two octaves up: phone speakers cannot reproduce the low layer on their own
+        pad_l += (0.34 / (k + 1)) * lfo * np.sin(2 * np.pi * f * 4 * t + 1.1)
+        pad_r += (0.34 / (k + 1)) * lfo * np.sin(2 * np.pi * f * 4.01 * t + 0.2)
+    air = np.convolve(rnd.standard_normal(n), np.ones(60) / 60, mode="same") * 0.35
     env = _env(n, 2.5, 1.5)
     piano = np.zeros(n)
     scale = [root * 8 * r for r in (1, 1.189, 1.335, 1.498, 1.782, 2)]
     at = 1.2
     while at < duration - 2:
-        _add(piano, 0.18 * _note(rnd.choice(scale), 3.0, decay=1.4), at)
+        _add(piano, 0.30 * _note(rnd.choice(scale), 3.0, decay=1.4), at)
         at += rnd.uniform(1.6, 2.6)
     piano = _echo(piano, delay=0.42, fb=0.45, taps=5)
     return _write(path, (pad_l + air) * env + piano, (pad_r + np.roll(air, 300)) * env + np.roll(piano, 200))

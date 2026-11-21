@@ -1,9 +1,10 @@
 """Overlay drawing helpers and the ffmpeg compositor shared by both formats."""
+import math
 import os
 
 from PIL import Image, ImageDraw, ImageFilter
 
-from common import FPS, H, W, ff
+from common import FPS, H, W, ff, media_duration
 
 
 def canvas():
@@ -58,34 +59,42 @@ def save(img, path):
     return path
 
 
-def compose(clip, overlays, audio, out, duration, grade="", zoom=0.06):
-    """clip -> 1080x1920 cover crop + slow push-in + colour grade, then PNG overlays (each with its own
-    start/end/fade), mixed with `audio` loudness-normalised to -14 LUFS (Instagram's playback target)."""
-    inputs = ["-stream_loop", "-1", "-i", clip]
+def prepare_clip(clip, out, duration):
+    """Cut the source down to a clean 1080x1920, 30 fps, silent clip of exactly `duration` seconds
+    (looping it if it is shorter). Doing this first keeps the final composite fast on CI."""
+    have = media_duration(clip)
+    loops = max(0, math.ceil(duration / have) - 1) if have > 0 else 0
+    pre = ["-stream_loop", str(loops)] if loops else []
+    ff([*pre, "-t", f"{duration + 0.5:.2f}", "-i", clip, "-an",
+        "-vf", f"fps={FPS},scale={W}:{H}:force_original_aspect_ratio=increase:flags=lanczos,crop={W}:{H},setsar=1",
+        "-t", f"{duration:.2f}", "-c:v", "libx264", "-preset", "veryfast", "-crf", "14", "-pix_fmt", "yuv420p", out])
+    return out
+
+
+def compose(clip, overlays, audio, out, duration, grade=""):
+    """Prepared clip + colour grade, then PNG overlays (each with its own start/end/fade), mixed with
+    `audio` loudness-normalised to -14 LUFS (Instagram's playback target)."""
+    prepared = prepare_clip(clip, clip + ".prep.mp4", duration)
+    inputs = ["-i", prepared]
     for o in overlays:
         inputs += ["-loop", "1", "-framerate", str(FPS), "-t", f"{duration:.2f}", "-i", o["png"]]
     inputs += ["-i", audio]
-    z = f"(1+{zoom}*t/{duration:.2f})"
-    chain = [f"[0:v]fps={FPS},scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},"
-             f"scale=w='trunc({W}*{z}/2)*2':h='trunc({H}*{z}/2)*2':eval=frame,crop={W}:{H},setsar=1"
-             f"{',' + grade if grade else ''},trim=duration={duration:.2f},setpts=PTS-STARTPTS[v0]"]
+    chain = [f"[0:v]{grade + ',' if grade else ''}format=yuv420p,setpts=PTS-STARTPTS[v0]"]
     last = "v0"
     for i, o in enumerate(overlays, start=1):
         start, end, fade = o.get("start", 0.0), o.get("end", duration), o.get("fade", 0.0)
         f = f"[{i}:v]format=rgba"
         if fade:
             f += f",fade=t=in:st={start:.2f}:d={fade:.2f}:alpha=1"
-            if end < duration:
-                f += f",fade=t=out:st={end - fade / 2:.2f}:d={fade / 2:.2f}:alpha=1"
         chain.append(f + f"[o{i}]")
         chain.append(f"[{last}][o{i}]overlay=0:0:enable='between(t,{start:.2f},{end:.2f})'[v{i}]")
         last = f"v{i}"
     a = len(overlays) + 1
-    chain.append(f"[{a}:a]atrim=duration={duration:.2f},afade=t=out:st={duration - 0.6:.2f}:d=0.6,"
-                 f"loudnorm=I=-14:TP=-1.5:LRA=11,aresample=44100[a]")
+    chain.append(f"[{a}:a]atrim=duration={duration:.2f},afade=t=in:st=0:d=0.15,"
+                 f"afade=t=out:st={duration - 0.5:.2f}:d=0.5,loudnorm=I=-14:TP=-1.5:LRA=11,aresample=44100[a]")
     ff([*inputs, "-filter_complex", ";".join(chain), "-map", f"[{last}]", "-map", "[a]",
         "-t", f"{duration:.2f}", "-c:v", "libx264", "-preset", "medium", "-crf", "19", "-pix_fmt", "yuv420p",
-        "-profile:v", "high", "-r", str(FPS), "-c:a", "aac", "-b:a", "192k", "-ac", "2",
+        "-profile:v", "high", "-r", str(FPS), "-c:a", "aac", "-b:a", "192k", "-ac", "2", "-ar", "44100",
         "-movflags", "+faststart", out])
     return out
 

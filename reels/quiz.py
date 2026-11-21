@@ -169,5 +169,5 @@ def build(handle: str, work: str, dry_run: bool):
                "Comment your answer before the reveal, then send this to the friend who thinks they know geography.\n"
                f"{'Follow @' + handle + ' for a new place every day.' if handle else 'Follow for a new place every day.'}\n\n"
                f"{' '.join(tags)}")
-    return {"video": out, "caption": caption, "used": [clip["id"], f"place:{answer}"],
+    return {"video": out, "caption": caption, "thumb_ms": 3000, "used": [clip["id"], f"place:{answer}"],
             "summary": f"{answer} | options {options} | fact: {text['fact']}"}

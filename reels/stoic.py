@@ -121,7 +121,7 @@ def build(handle: str, work: str, dry_run: bool):
         overlays.append({"png": save(m, p("meaning.png")), "start": meaning_at, "fade": 0.8})
 
     audio = stoic_track(p("audio.wav"), duration, seed=random.randint(0, 10_000))
-    out = compose(clip_path, overlays, audio, p("reel.mp4"), duration, zoom=0.05,
+    out = compose(clip_path, overlays, audio, p("reel.mp4"), duration,
                   grade="eq=brightness=-0.06:contrast=1.06:saturation=0.55,vignette=PI/4.5")
 
     tags = clean_hashtags(text["hashtags"], ["Stoicism", "Stoic", "MarcusAurelius", "Seneca", "Philosophy", "Mindset"], 8)
@@ -133,5 +133,5 @@ def build(handle: str, work: str, dry_run: bool):
     body += ("\nSave this for the day you need it, and send it to someone who does.\n"
              f"{'Follow @' + handle + ' for one Stoic idea every day.' if handle else 'Follow for one Stoic idea every day.'}"
              f"\n\n{' '.join(tags)}")
-    return {"video": out, "caption": body, "duration": duration,
+    return {"video": out, "caption": body, "duration": duration, "thumb_ms": int((author_at + 1.0) * 1000),
             "used": [clip["id"], f"q:{quote[:60]}"], "summary": f"{author}: {quote} | meaning: {text['meaning']}"}

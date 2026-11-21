@@ -4,13 +4,16 @@
   python reels/main.py stoic    # Stoic quotes account
 
 Env: PIXABAY_API_KEY, GEMINI_API_KEY, IG_TOKEN_QUIZ / IG_TOKEN_STOIC.
-With DRY_RUN=1, or when the account's token is not set yet, the Reel is rendered, checked and saved to
-reels_output/ instead of being posted.
+  RUN_MODE=schedule  post only if a slot is due (see slots.py), exactly at the slot time
+  RUN_MODE=manual    post right away (default)
+  DRY_RUN=1          render + check + save to OUT_DIR, never post (also used when no token is set)
 """
 import os
 import shutil
 import sys
 import tempfile
+import time
+from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -18,17 +21,37 @@ from common import mark_used  # noqa: E402
 import instagram  # noqa: E402
 import qc  # noqa: E402
 import quiz  # noqa: E402
+import slots  # noqa: E402
 import stoic  # noqa: E402
 
 FORMATS = {"quiz": quiz, "stoic": stoic}
 OUT_DIR = os.environ.get("OUT_DIR", "reels_output")
 
 
+def wait_until(t):
+    left = (t - datetime.now(timezone.utc)).total_seconds()
+    if left > 0:
+        print(f"   ⏳ Reel ready. Waiting {left / 60:.0f} min to post at {t:%H:%M} UTC")
+        time.sleep(left)
+
+
 def main(acct: str) -> int:
     fmt = FORMATS[acct]
     token = os.environ.get(f"IG_TOKEN_{acct.upper()}", "").strip()
+    scheduled = os.environ.get("RUN_MODE") == "schedule"
     dry = os.environ.get("DRY_RUN") == "1" or not token
     os.makedirs(OUT_DIR, exist_ok=True)
+
+    slot = None
+    if scheduled:
+        if not token:
+            print(f"⏭️ No Instagram token for '{acct}' yet, nothing to do.")
+            return 0
+        slot = slots.due_slot(acct)
+        if not slot:
+            print(f"⏭️ No posting slot due for '{acct}'.")
+            return 0
+        print(f"🕒 Slot due: {slot[0]} UTC")
 
     handle = os.environ.get(f"IG_HANDLE_{acct.upper()}", "").strip().lstrip("@")
     if token:
@@ -40,7 +63,7 @@ def main(acct: str) -> int:
                 return 1
     print(f"🎬 Account: {acct}  handle: @{handle or '?'}  mode: {'DRY RUN (save only)' if dry else 'POST'}")
 
-    for attempt in (1, 2):
+    for attempt in (1, 2, 3):
         work = tempfile.mkdtemp(prefix=f"reel_{acct}_")
         try:
             r = fmt.build(handle, work, dry)
@@ -50,17 +73,20 @@ def main(acct: str) -> int:
             print(f"   📝 {r['summary']}")
             if not ok:
                 continue
-            name = f"{acct}_{sum(f.startswith(acct) and f.endswith('.mp4') for f in os.listdir(OUT_DIR)) + 1}"
-            shutil.copy(r["video"], os.path.join(OUT_DIR, f"{name}.mp4"))
-            with open(os.path.join(OUT_DIR, f"{name}.txt"), "w") as f:
+            n = sum(f.startswith(acct) and f.endswith(".mp4") for f in os.listdir(OUT_DIR)) + 1
+            shutil.copy(r["video"], os.path.join(OUT_DIR, f"{acct}_{n}.mp4"))
+            with open(os.path.join(OUT_DIR, f"{acct}_{n}.txt"), "w") as f:
                 f.write(r["caption"] + "\n")
             if dry:
-                print(f"   💾 saved {OUT_DIR}/{name}.mp4 (not posted)")
-                mark_used(acct, *r["used"]) if os.environ.get("MARK_USED_IN_DRY_RUN") == "1" else None
+                print(f"   💾 saved {OUT_DIR}/{acct}_{n}.mp4 (not posted)")
                 return 0
-            res = instagram.publish_reel(token, r["video"], r["caption"])
+            if slot:
+                wait_until(slot[1])
+            res = instagram.publish_reel(token, r["video"], r["caption"], r.get("thumb_ms", 3000))
             print(f"   ✅ Posted: {res.get('permalink') or res['id']}")
             mark_used(acct, *r["used"])
+            if slot:
+                slots.record(acct, slot[0], res.get("permalink", ""))
             new = instagram.refresh_token(token)
             if new and new != token:
                 with open(os.path.join(OUT_DIR, f"new_token_{acct}.secret"), "w") as f:
