@@ -30,6 +30,7 @@ jobs:
 
       - name: Run Pipeline
         env:
+          PYTHONUNBUFFERED: '1'  # show log lines live, so a stuck run shows where it stopped
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
@@ -39,6 +40,7 @@ jobs:
           python main.py
 
       - name: Commit and Push Updated Video Tracker
+        if: always()  # remember used clips even when the run fails or times out
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"

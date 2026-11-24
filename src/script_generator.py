@@ -13,6 +13,10 @@ import time
 from google import genai
 from google.genai import types
 
+# Without these a stalled Gemini request waits forever and the whole run dies at the job time limit.
+GEMINI_TIMEOUT_MS = 45_000  # one request
+GEMINI_BUDGET_S = 240       # all models and retries together; after that the fallback metadata is used
+
 # Search phrases per topic: [primary keyword, secondary keywords...]
 # Primary = highest-volume phrase; it leads the title and the first line of the description.
 KEYWORDS = {
@@ -128,12 +132,16 @@ def generate_ambience_metadata(topic: str, is_short: bool = False, duration_labe
         print("⚠️ Warning: GEMINI_API_KEY missing. Using fallback metadata.")
         return get_fallback_metadata(topic, is_short, duration_label)
 
-    client = genai.Client(api_key=api_key)
+    client = genai.Client(api_key=api_key, http_options=types.HttpOptions(timeout=GEMINI_TIMEOUT_MS))
+    deadline = time.monotonic() + GEMINI_BUDGET_S
     prompt = _build_prompt(topic, is_short, duration_label)
     config = types.GenerateContentConfig(response_mime_type="application/json", temperature=0.9)
 
     for model in ("gemini-flash-lite-latest", "gemini-flash-latest", "gemini-2.5-flash-lite", "gemini-2.5-flash"):
         for attempt in range(3):
+            if time.monotonic() > deadline:
+                print("❌ Gemini is too slow right now. Using fallback metadata.")
+                return get_fallback_metadata(topic, is_short, duration_label)
             try:
                 response = client.models.generate_content(model=model, contents=prompt, config=config)
                 raw = (response.text or "").strip()

@@ -41,8 +41,8 @@ def save_used_id(video_id):
 
 
 def _ff(args, check=True):
-    return subprocess.run([FFMPEG, "-hide_banner", "-y", "-loglevel", "error", *args], check=check,
-                          capture_output=True, text=True)
+    return subprocess.run([FFMPEG, "-hide_banner", "-y", "-nostdin", "-loglevel", "error", *args], check=check,
+                          capture_output=True, text=True, timeout=1200)
 
 
 def media_duration(path: str) -> float:
